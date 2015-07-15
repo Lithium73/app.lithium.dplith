@@ -4,13 +4,37 @@ import urlparse
 import xbmcgui
 import xbmc
 import xbmcplugin
+import os
 import xbmcaddon
 import urlresolver
 from t0mm0.common.addon import Addon
 from t0mm0.common.net import Net
+from HTMLParser import HTMLParser
+from htmlentitydefs import name2codepoint
 
 
+sys.path.append(xbmc.translatePath(os.path.join(xbmc.translatePath('special://home'), 'addons',
+                                                xbmcaddon.Addon().getAddonInfo('id'), 'lib', )))
+sys.path.append(xbmc.translatePath(os.path.join(xbmc.translatePath('special://home'), 'addons',
+                                                xbmcaddon.Addon().getAddonInfo('id'), 'lib', 'parser')))
+sys.path.append(xbmc.translatePath(os.path.join(xbmc.translatePath('special://home'), 'addons',
+                                                xbmcaddon.Addon().getAddonInfo('id'), 'lib', 'video')))
 
+from mainmenu import MainMenu
+
+from movieparser import weeklymovie_parser
+from movieparser import searchymovie_parser
+
+from serieparser import weeklyserie_parser
+from serieparser import serie_saison_parser
+from serieparser import serie_episode_parser
+from serieparser import searchserie_parser
+
+from videolink import search_purevid
+from videolink import choice_link
+
+
+a = MainMenu()
 
 base_url = sys.argv[0]
 addon_handle = int(sys.argv[1])
@@ -20,8 +44,7 @@ args = urlparse.parse_qs(sys.argv[2][1:])
 
 xbmcplugin.setContent(addon_handle, 'movies')
 net = Net()
-from HTMLParser import HTMLParser
-from htmlentitydefs import name2codepoint
+
 
 home_url = "http://www.dpstream.net/"
 
@@ -30,189 +53,6 @@ def build_url(query):
 
 mode = args.get('mode', None)
 
-class MovieFolder():
-    url = ""
-    title = ""
-
-class SaisonFolder():
-    url = ""
-    number = ""
-
-# ############################################  PARSER ###########################################
-
-# WEEKLY MOVIE
-class weeklymovie_parser(HTMLParser):
-    homeMovieUrl = []
-    findhref = False
-
-    def handle_starttag(self, tag, attrs):
-        self.findhref = False
-        for attr in attrs:
-            if "href" in attr:
-                if "films-" in attr[1]:
-                    self.findhref = True
-                    objecttopush = MovieFolder()
-                    objecttopush.url = home_url+attr[1];
-                    self.homeMovieUrl.append(objecttopush)
-                else:
-                    self.findhref = False
-            else:
-                self.findhref = False
-
-    def handle_data(self, data):
-        if self.findhref:
-            if len(self.homeMovieUrl[len(self.homeMovieUrl)-1].title) == 0:
-                self.homeMovieUrl[len(self.homeMovieUrl)-1].title = data
-
-# WEEKLY SERIE
-class weeklyserie_parser(HTMLParser):
-    homeSerieUrl = []
-    findhref = False
-
-    def handle_starttag(self, tag, attrs):
-        self.findhref = False
-        for attr in attrs:
-            if "href" in attr:
-                if "serie-" in attr[1]:
-                    self.findhref = True
-                    objecttopush = MovieFolder()
-                    objecttopush.url = home_url+attr[1];
-                    self.homeSerieUrl.append(objecttopush)
-                else:
-                    self.findhref = False
-            else:
-                self.findhref = False
-
-    def handle_data(self, data):
-        if self.findhref:
-            if len(self.homeSerieUrl[len(self.homeSerieUrl)-1].title) == 0:
-                self.homeSerieUrl[len(self.homeSerieUrl)-1].title = data
-
-
-# Parse saison
-class serie_saison_parser(HTMLParser):
-    saisons = []
-    findh3 = False
-
-    def handle_starttag(self, tag, attrs):
-        self.findh3 = False
-        if tag == 'h3':
-            self.findh3 = True
-
-    def handle_data(self, data):
-        if self.findh3:
-            if "Saison " in data:
-                self.saisons.append(data)
-
-
-# Parse episode
-class serie_episode_parser(HTMLParser):
-    episodes = []
-    findhref = False
-
-    def __init__(self, saison):
-        HTMLParser.__init__(self)
-        self.saison = saison
-
-    def handle_starttag(self, tag, attrs):
-        sais = self.saison
-        sais = sais.replace(" ", "-")
-        sais = sais.lower()
-        for attr in attrs:
-            if "href" in attr:
-                if "serie-" in attr[1] and sais in attr[1]:
-                    self.findhref = True
-                    objecttopush = MovieFolder()
-                    objecttopush.url = home_url+attr[1];
-                    self.episodes.append(objecttopush)
-                else:
-                    self.findhref = False
-            else:
-                self.findhref = False
-
-    def handle_data(self, data):
-         if self.findhref:
-            if len(self.episodes[len(self.episodes)-1].title) == 0:
-                self.episodes[len(self.episodes)-1].title = data
-                self.makePurevidUrl(len(self.episodes)-1)
-
-    def makePurevidUrl(self, index):
-
-        # example http://www.dpstream.net/fichiers/includes/inc_afficher_serie/
-        # changer_episode.php?changer_episod=1&id_serie=101&saison=2&episode=04&version=FR
-
-        url = self.episodes[index].url
-        # find saison
-        saisonIndex = url.find("saison-")+7
-        lastSaisonIndex = url.find("-episode")
-        saison = url[saisonIndex:lastSaisonIndex]
-
-        #find episode
-        episodeIndex = url.find("-episode")+8
-        tmpurl = url[episodeIndex+1:]
-        lastEpisodeIndex = tmpurl.find("-")
-        episode = tmpurl[:lastEpisodeIndex]
-
-        # find id
-        idIndex = url.find("serie-")+5
-        tmpurl = url[idIndex+1:]
-        lastIdIndex = tmpurl.find("-")
-        id = tmpurl[:lastIdIndex]
-
-        # find lang
-        langIndex = url.find(episode+"-")+len(episode)
-        tmpurl = url[langIndex+1:]
-        lastLangIndex = tmpurl.find(".")
-        lang = tmpurl[:lastLangIndex]
-
-        finalUrl = home_url+"fichiers/includes/inc_afficher_serie/changer_episode.php?changer_episod="+episode+"&id_serie="+id+"&saison="+saison+"&episode="+episode+"&version="+lang
-        self.episodes[index].url = finalUrl
-
-class searchymovie_parser(HTMLParser):
-    homeMovieUrl = []
-    findhref = False
-
-    def handle_starttag(self, tag, attrs):
-        self.findhref = False
-        for attr in attrs:
-            if "href" in attr:
-                if "films-" in attr[1]:
-                    self.findhref = True
-                    objecttopush = MovieFolder()
-                    objecttopush.url = home_url+attr[1];
-                    self.homeMovieUrl.append(objecttopush)
-                else:
-                    self.findhref = False
-            else:
-                self.findhref = False
-
-    def handle_data(self, data):
-        if self.findhref:
-            if len(self.homeMovieUrl[len(self.homeMovieUrl)-1].title) == 0:
-                self.homeMovieUrl[len(self.homeMovieUrl)-1].title = data
-
-
-class searchserie_parser(HTMLParser):
-    homeSerieUrl = []
-    findhref = False
-
-    def handle_starttag(self, tag, attrs):
-        self.findhref = False
-        for attr in attrs:
-            if "href" in attr:
-                if "serie-" in attr[1] and "serie-lettre" not in attr[1]:
-                    self.findhref = True
-                    objecttopush = MovieFolder()
-                    objecttopush.url = home_url+attr[1];
-                    self.homeSerieUrl.append(objecttopush)
-                else:
-                    self.findhref = False
-            else:
-                self.findhref = False
-
-    def handle_data(self, data):
-        if len(self.homeSerieUrl) > 0 and len(self.homeSerieUrl[len(self.homeSerieUrl)-1].title) == 0:
-            self.homeSerieUrl[len(self.homeSerieUrl)-1].title = data
 
 # ############################################  PARSER ###########################################
 # ############################################  PARSER UTILS ###########################################
@@ -220,34 +60,7 @@ class searchserie_parser(HTMLParser):
 
 
 
-# SEARCH PUREVID
-class search_purevid(HTMLParser):
-    purevid_url = ""
 
-    def handle_starttag(self, tag, attrs):
-        for attr in attrs:
-            if "href" in attr:
-                if "purevid.com" in attr[1]:
-                    print("preuvid link found on page : "+attr[1])
-                    self.purevid_url = attr[1]
-
-
-# CHOICE VIDEO LINK
-class choice_link(HTMLParser):
-    urls = []
-
-    def handle_starttag(self, tag, attrs):
-        self.findhref = False
-        for attr in attrs:
-            if "href" in attr:
-                if "film-" in attr[1] and "en-streaming" in attr[1] and "facebook" not in attr[1]:
-                    print("find any film : "+home_url+attr[1])
-                    self.findhref = True
-                    self.urls.append(home_url+attr[1])
-                else:
-                    self.findhref = False
-            else:
-                self.findhref = False
 
 # ############################################  PARSER UTILS ###########################################
 # ############################################  GET VIDEO URL ###########################################
