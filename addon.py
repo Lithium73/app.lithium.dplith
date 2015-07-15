@@ -67,26 +67,35 @@ mode = args.get('mode', None)
 
 def get_video_item(url2):
     urls = []
+    link = 0
     if "films" in url2:
         print("have to make a purevid choice")
         multifilmparser = choice_link()
         source = net.http_GET(url2).content.encode('utf-8').strip()
         multifilmparser.feed(source)
-        link = 0
-        if len(multifilmparser.urls) > 1 : #:
+        if len(multifilmparser.urls) > 1 :
             for url in multifilmparser.urls:
                 if "film-" in url:
                     link = link+1
                     source = net.http_GET(url).content.encode('utf-8').strip()
                     parser = search_purevid()
                     parser.feed(source)
-                    urls.append(urlresolver.HostedMediaFile(url=parser.purevid_url, title="Link "+str(link)))
-
+                    urls.append(urlresolver.HostedMediaFile(url=parser.purevid_urls[0], title="Link "+str(link)))
+    else:
+        source = net.http_GET(url2).content.encode('utf-8').strip()
+        parser = search_purevid()
+        parser.feed(source)
+        print('go else')
+        for url in parser.purevid_urls:
+            link = link+1
+            print("url find for serie "+url)
+            urls.append(urlresolver.HostedMediaFile(url=url, title="Link "+str(link)))
 
     source = urlresolver.choose_source(urls)
-    if len(url2) < 1:
+    if len(url2) == 0 or source is False:
        xbmc.executebuiltin("Notification(DPLith,Purevid link not found)")
-       return ''
+       print('error on '+url2)
+       return
     print("read this stream : "+url2)
 
     stream_url = source.resolve()

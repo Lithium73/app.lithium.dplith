@@ -8,14 +8,14 @@ home_url = "http://www.dpstream.net/"
 
 # SEARCH PUREVID
 class search_purevid(HTMLParser):
-    purevid_url = ""
+    purevid_urls = []
 
     def handle_starttag(self, tag, attrs):
         for attr in attrs:
             if "href" in attr:
-                if "purevid.com" in attr[1]:
+                if "purevid.com/" in attr[1]:
                     print("preuvid link found on page : "+attr[1])
-                    self.purevid_url = attr[1]
+                    self.purevid_urls.append(attr[1])
 
 
 # CHOICE VIDEO LINK
