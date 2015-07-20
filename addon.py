@@ -73,8 +73,9 @@ def get_video_item(url2):
         multifilmparser = choice_link()
         source = net.http_GET(url2).content.encode('utf-8').strip()
         multifilmparser.feed(source)
-        if len(multifilmparser.urls) > 1 :
+        if len(multifilmparser.urls) >= 1 :
             for url in multifilmparser.urls:
+                print("an url -> "+url)
                 if "film-" in url:
                     link = link+1
                     source = net.http_GET(url).content.encode('utf-8').strip()
