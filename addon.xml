@@ -9,6 +9,7 @@
     <provides>video</provides>
   </extension>
   <extension point="xbmc.addon.metadata">
+    <defaultcontrol always="true">504</defaultcontrol>
     <summary lang="en">Lithium's dpstream parser</summary>
     <description lang="en">Ca parse dpstream pour le lire avec urlencoder !! Magie !!</description>
     <disclaimer lang="en"></disclaimer>

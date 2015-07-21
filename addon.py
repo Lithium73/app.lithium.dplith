@@ -36,6 +36,9 @@ from videolink import choice_link
 
 a = MainMenu()
 
+view_mode_id=504
+
+
 base_url = sys.argv[0]
 addon_handle = int(sys.argv[1])
 addon = Addon('plugin.video.dpstreamparser', sys.argv)
@@ -44,7 +47,6 @@ args = urlparse.parse_qs(sys.argv[2][1:])
 
 xbmcplugin.setContent(addon_handle, 'movies')
 net = Net()
-
 
 home_url = "http://www.dpstream.net/"
 
@@ -100,6 +102,8 @@ def get_video_item(url2):
     print("read this stream : "+url2)
 
     stream_url = source.resolve()
+    # wherebegin = xbmcgui.Dialog().input("When begin ?")
+    # return stream_url+"start="+(wherebegin*60*1000)
     return stream_url
     #  return url2
 
@@ -111,11 +115,15 @@ def get_video_item(url2):
 # ############################################  CREATE LIST ITEM ###########################################
 
 def create_video_item(url):
+     xbmcplugin.setContent(int(sys.argv[1]),'movies')
+
      print("find purevid for :"+url)
      li = xbmcgui.ListItem('PureVid', iconImage='DefaultVideo.png')
      li.setProperty('isplayable', 'true')
      li.setProperty('Video', 'true')
+     li.setInfo( type="Video", infoLabels={"Year":2003 ,"Title": "title","Plot":"description","rating":"rating"  } )
      xbmcplugin.addDirectoryItem(handle=addon_handle, url=get_video_item(url), listitem=li, isFolder=False)
+     xbmc.executebuiltin('Container.SetViewMode(%d)' % view_mode_id)
      xbmcplugin.endOfDirectory(addon_handle)
 
 
@@ -124,6 +132,7 @@ def create_list_item_video(array):
         li = xbmcgui.ListItem(array[i].title, iconImage='DefaultFolder.png')
         url = build_url({'mode': 'folder', 'foldername': 'Folder Two', 'url': array[i].url})
         xbmcplugin.addDirectoryItem(handle=addon_handle, url=url, listitem=li, isFolder=True)
+    xbmc.executebuiltin('Container.SetViewMode(%d)' % view_mode_id)
     xbmcplugin.endOfDirectory(addon_handle);
 
 def create_list_serie(array):
@@ -131,6 +140,7 @@ def create_list_serie(array):
         li = xbmcgui.ListItem(array[i].title, iconImage='DefaultFolder.png')
         url = build_url({'mode': 'saison', 'foldername': 'Folder Two', 'url': array[i].url})
         xbmcplugin.addDirectoryItem(handle=addon_handle, url=url, listitem=li, isFolder=True)
+    xbmc.executebuiltin('Container.SetViewMode(%d)' % view_mode_id)
     xbmcplugin.endOfDirectory(addon_handle);
 
 def create_list_saison(array, urlDp):
@@ -138,6 +148,7 @@ def create_list_saison(array, urlDp):
         li = xbmcgui.ListItem(array[i], iconImage='DefaultFolder.png')
         url = build_url({'mode': 'episode', 'foldername': 'Folder Two', 'saison': array[i], 'url': urlDp})
         xbmcplugin.addDirectoryItem(handle=addon_handle, url=url, listitem=li, isFolder=True)
+    xbmc.executebuiltin('Container.SetViewMode(%d)' % view_mode_id)
     xbmcplugin.endOfDirectory(addon_handle);
 
 
@@ -146,6 +157,7 @@ def create_list_episode(saison):
         li = xbmcgui.ListItem(saison[i].title, iconImage='DefaultFolder.png')
         url = build_url({'mode': 'folder', 'foldername': 'Folder Two', 'url': ""})
         xbmcplugin.addDirectoryItem(handle=addon_handle, url=url, listitem=li, isFolder=True)
+    xbmc.executebuiltin('Container.SetViewMode(%d)' % view_mode_id)
     xbmcplugin.endOfDirectory(addon_handle);
 
 # ############################################  CREATE LIST ITEM ###########################################
