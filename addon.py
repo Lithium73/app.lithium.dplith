@@ -76,6 +76,7 @@ def get_video_item(url2):
         source = net.http_GET(url2).content.encode('utf-8').strip()
         multifilmparser.feed(source)
         if len(multifilmparser.urls) >= 1 :
+            print('find an url')
             for url in multifilmparser.urls:
                 print("an url -> "+url)
                 if "film-" in url:
@@ -84,6 +85,16 @@ def get_video_item(url2):
                     parser = search_purevid()
                     parser.feed(source)
                     urls.append(urlresolver.HostedMediaFile(url=parser.purevid_urls[0], title="Link "+str(link)))
+        else:
+            source = net.http_GET(url2).content.encode('utf-8').strip()
+            parser = search_purevid()
+            parser.feed(source)
+            print('go else')
+            if len(parser.purevid_urls) > 0:
+                for url in parser.purevid_urls:
+                    link = link+1
+                    print("url find for serie "+url)
+                    urls.append(urlresolver.HostedMediaFile(url=url, title="Link "+str(link)))
     else:
         source = net.http_GET(url2).content.encode('utf-8').strip()
         parser = search_purevid()
@@ -94,18 +105,20 @@ def get_video_item(url2):
             print("url find for serie "+url)
             urls.append(urlresolver.HostedMediaFile(url=url, title="Link "+str(link)))
 
-    source = urlresolver.choose_source(urls)
+
+    #source = urlresolver.choose_source(urls)
     if len(url2) == 0 or source is False:
        xbmc.executebuiltin("Notification(DPLith,Purevid link not found)")
        print('error on '+url2)
        return
     print("read this stream : "+url2)
 
-    stream_url = source.resolve()
+    # stream_url = source.resolve()
     # wherebegin = xbmcgui.Dialog().input("When begin ?")
     # return stream_url+"start="+(wherebegin*60*1000)
-    return stream_url
+    # return stream_url
     #  return url2
+    return urls
 
     # xbmcgui.Dialog().ok('log', stream_url)
     # addon.resolve_url(stream_url);
@@ -115,25 +128,48 @@ def get_video_item(url2):
 # ############################################  CREATE LIST ITEM ###########################################
 
 def create_video_item(url):
-     xbmcplugin.setContent(int(sys.argv[1]),'movies')
+    # contain async update exemple
+    items = []
+    wid = xbmcgui.getCurrentWindowId()
+    wnd = xbmcgui.Window(wid)
+    ctrl = wnd.getControl(wnd.getFocusId())
+    xbmcplugin.setContent(int(sys.argv[1]),'movies')
+    urls = get_video_item(url)
+    for i in range(0,len(urls)):
+         print("find purevid for :"+url)
+         li = xbmcgui.ListItem('PureVid '+str(i), iconImage='DefaultVideo.png')
+         li.setProperty('isplayable', 'true')
+         li.setProperty('Video', 'true')
+         li.setInfo( type="Video", infoLabels={"Year":2003 ,"Title": "title","Plot":"description","rating":"rating"  } )
+         try:
+            stream_url = urls[i].resolve()
+            xbmcplugin.addDirectoryItem(handle=addon_handle, url=stream_url, listitem=li, isFolder=False)
+            items.append(li)
+         except :
+             print("can't resolve")
 
-     print("find purevid for :"+url)
-     li = xbmcgui.ListItem('PureVid', iconImage='DefaultVideo.png')
-     li.setProperty('isplayable', 'true')
-     li.setProperty('Video', 'true')
-     li.setInfo( type="Video", infoLabels={"Year":2003 ,"Title": "title","Plot":"description","rating":"rating"  } )
-     xbmcplugin.addDirectoryItem(handle=addon_handle, url=get_video_item(url), listitem=li, isFolder=False)
-     xbmc.executebuiltin('Container.SetViewMode(%d)' % view_mode_id)
-     xbmcplugin.endOfDirectory(addon_handle)
+    xbmc.executebuiltin('Container.SetViewMode(%d)' % view_mode_id)
+    xbmcplugin.endOfDirectory(addon_handle)
 
 
 def create_list_item_video(array):
+    items = ['...']
+    wid = xbmcgui.getCurrentWindowId()
+    wnd = xbmcgui.Window(wid)
+    ctrl = wnd.getControl(wnd.getFocusId())
     for i in range(0, len(array)):
         li = xbmcgui.ListItem(array[i].title, iconImage='DefaultFolder.png')
         url = build_url({'mode': 'folder', 'foldername': 'Folder Two', 'url': array[i].url})
         xbmcplugin.addDirectoryItem(handle=addon_handle, url=url, listitem=li, isFolder=True)
+        items.append(li)
     xbmc.executebuiltin('Container.SetViewMode(%d)' % view_mode_id)
+    ctrl.addItems(items)
     xbmcplugin.endOfDirectory(addon_handle);
+    #now we can update list
+    #ctrl.getListItem(0).setLabel('async')
+    for i in range(0,len(array)):
+        ctrl.getListItem(i+1).setLabel(array[i].title)
+        # update meta
 
 def create_list_serie(array):
     for i in range(0, len(array)):
